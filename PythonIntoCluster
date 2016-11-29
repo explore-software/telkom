@@ -1,0 +1,3 @@
+from pyspark import SparkContext, SparkConf, HiveContext
+sqlContext.setConf("spark.sql.parquet.binaryAsString", "true")
+df = sqlContext.sql("SELECT * FROM parquet.`/user/hive/warehouse/database.db/dataset`")
