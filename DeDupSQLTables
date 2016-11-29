@@ -1,0 +1,63 @@
+-------------------------------------------------------------------------------
+drop table bigdata2.datCustomer;
+
+create table bigdata2.datCustomer
+as
+    select *
+    from 
+        (
+        select cust.*, rev.avg_rev monthly_rental 
+            row_number() over (partition by dn_number_tin_number order by dn_number_tin_number) Seq
+        from a1_super_customer_vt3 cust1
+        inner join a8_super_revenue_2015 rev on rev.dn = cust1.dn_number_tin_number and rev.ban = cust1.bann
+        where cust1.service_type is not NULL
+        ) cust
+    where cust.Seq = 1
+
+-------------------------------------------------------------------------------
+drop table bigdata2.datFault;
+
+create table bigdata2.datFault
+as
+    select tick.*, 
+        CASE WHEN datediff( tick.date_fault_cleared, tick.date_fault_reported) >= 0 and datediff( tick.date_fault_cleared, tick.date_fault_reported) <=1 THEN 1
+             WHEN datediff( tick.date_fault_cleared, tick.date_fault_reported) > 1 and datediff( tick.date_fault_cleared, tick.date_fault_reported) <=2 THEN 2
+             WHEN datediff( tick.date_fault_cleared, tick.date_fault_reported) > 2 and datediff( tick.date_fault_cleared, tick.date_fault_reported) <=3 THEN 3
+             WHEN datediff( tick.date_fault_cleared, tick.date_fault_reported) > 3 and datediff( tick.date_fault_cleared, tick.date_fault_reported) <=4 THEN 4
+             ELSE 5 END DaysToResolveGroup,
+        CASE WHEN CAST(tick.repeat_fault as float) > 0 then 1 else 0 end repeat_fault_ind
+    from 
+         (
+         select *, row_number() over(partition by unique_ticket_id order by unique_ticket_id) Seq
+         from a2_super_tickets_v5 tick1
+         ) tick
+    where tick.Seq = 1
+
+-------------------------------------------------------------------------------
+drop table bigdata2.datDispatch;
+
+create table bigdata2.datDispatch
+as
+    select *, CAST(disp.dispatch_date_start/1000 as timestamp) dispatch_date_start_ts, CAST(disp.dispatch_date_end/1000 as timestamp) dispatch_date_end_ts
+    from
+        (
+        select *, row_number() over(partition by dispatch_number order by dispatch_number) Seq 
+        from a5_super_dispatch_v3 disp
+        ) disp
+    where disp.Seq = 1
+
+-------------------------------------------------------------------------------
+drop table bigdata2.datCustomerSample;
+
+create table bigdata2.CustomerSample
+as
+    select cust.dn_number_tin_number
+    from 
+        (
+        select *, 
+            row_number() over (partition by dn_number_tin_number, bann order by dn_number_tin_number) Seq, Rand()*1000 Random
+        from a1_super_customer_vt3 cust1
+        where cust1.service_type is not NULL
+        ) cust
+    where cust.Seq = 1 and Random < 500
+    limit 10000
